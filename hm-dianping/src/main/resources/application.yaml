@@ -7,11 +7,11 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
     url: jdbc:mysql://47.115.209.131/project_dp?useSSL=false&serverTimezone=UTC
     username: project_dp
-    password: HaenuAdmin.0.0.0
+    password: HaenuAdmin.
   redis:
-    host: 192.168.150.101
+    host: 47.115.209.131
     port: 6379
-    password: 123321
+    password: HaenuAdmin.
     lettuce:
       pool:
         max-active: 10
