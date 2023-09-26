@@ -33,6 +33,7 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
 
     @Override
     public Result queryShopType() {
+        //ceshi1
         String key = CACHE_SHOPTYPE_LIST_KEY;
         String shopTypeJson = stringRedisTemplate.opsForValue().get(key);
         //存在
