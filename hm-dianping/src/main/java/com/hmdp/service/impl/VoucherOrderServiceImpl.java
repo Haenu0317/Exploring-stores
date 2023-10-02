@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.concurrent.*;
 
 /**
  * <p>
@@ -48,32 +49,45 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private RedissonClient redissonClient;
 
     private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
+
     static {
         SECKILL_SCRIPT = new DefaultRedisScript<>();
         SECKILL_SCRIPT.setLocation(new ClassPathResource("seckill.lua"));
         SECKILL_SCRIPT.setResultType(Long.class);
     }
 
+    private BlockingQueue<VoucherOrder> orderTasks = new ArrayBlockingQueue<>(1024 * 1024);
+
+    private static final ExecutorService SECKILL_ORDER_HANDLE_EXECUTOR = Executors.newSingleThreadExecutor();
+
     @Override
     public Result seckillVoucher(Long voucherId) {
 
-        Long id = UserHolder.getUser().getId();
-        //1.执行lua脚本
-        Long result = stringRedisTemplate.execute(
-                SECKILL_SCRIPT,
+        Long userId = UserHolder.getUser().getId();
+        Long result = stringRedisTemplate.execute(SECKILL_SCRIPT,
                 Collections.emptyList(),
                 voucherId.toString(),
-                id.toString()
-        );
-
-        int r = result.intValue();
-        if (r != 0){
-            return Result.fail(r == 1 ? "库存不足" : "禁止重复下单");
+                userId.toString());
+        //判断结构是为否0
+        if (result != 0) {
+            //2.1不为0,又分两种情况
+            return Result.fail(result==1 ? "优惠券已售罄":"请勿重复下单");
         }
 
-        //todo 保存阻塞队列
+        //2.2为0，有购买资格，把下单信息保存到阻塞队列
+        VoucherOrder voucherOrder = new VoucherOrder();
+        //生成订单信息
+        long orderId = redisIdWorker.nextId("order");
+        //TODO 保存到阻塞队列
+        voucherOrder.setId(orderId);
+        voucherOrder.setUserId(userId);
+        voucherOrder.setVoucherId(voucherId);
+
+        orderTasks.add(voucherOrder);
 
 
+
+        //返回订单消息
         return Result.ok(0);
 
 
